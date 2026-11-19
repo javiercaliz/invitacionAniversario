@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Luci &amp; Javi cumplen 10 años. Jugá con el sapito y descubrí los datos de la fiesta.">
+<meta name="theme-color" content="#efe9e1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Luci &amp; Javi 10 años</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Karla:wght@400;600;700&family=Yellowtail&display=swap">
+<style>
+/* Layout: el sapito de papel en 3D flota en el centro de un fondo liso y cálido; UI mínima arriba (nombres + estado) y abajo (deletreo, progreso, botones). Los datos aparecen en notas de papel que suben desde abajo. Look único claro. */
+:root {
+  --bg: #efe9e1;
+  --bg-hi: #f8f5f0;
+  --paper: #fffdf9;
+  --ink: #2b231e;
+  --ink-soft: #7a6a5d;
+  --line: rgba(43,35,30,.18);
+  --coral: #d9584f;
+  --t-blush: #f6dcd3;
+  --t-kraft: #efe2cc;
+  --f-script: "Yellowtail", "Brush Script MT", cursive;
+  --f-hand: "Caveat", "Segoe Print", "Comic Sans MS", cursive;
+  --f-body: "Karla", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse 90% 70% at 50% 48%, var(--bg-hi), var(--bg) 70%);
+  background-color: var(--bg);
+  color: var(--ink); font-family: var(--f-body);
+  overflow: hidden; overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#gl.dragging { cursor: grabbing; }
+
+.ui {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: none; text-align: center;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.ui button, .ui a { pointer-events: auto; }
+#top { display: flex; flex-direction: column; align-items: center; }
+.eyebrow { margin: 0; font-size: .7rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--coral); }
+h1 { margin: 2px 0 0; font-family: var(--f-script); font-weight: 400; font-size: clamp(2.5rem, 12vw, 3.3rem); line-height: 1.05; color: var(--ink); }
+.sub { margin: 0; font-family: var(--f-hand); font-size: 1.25rem; color: var(--ink-soft); }
+.status { margin: 14px 0 0; font-family: var(--f-hand); font-size: 1.45rem; line-height: 1.15; font-weight: 700; color: var(--ink); text-wrap: balance; }
+.hint { margin: 2px 0 0; font-size: .74rem; letter-spacing: .08em; color: var(--ink-soft); }
+.spacer { flex: 1; }
+#bottom { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 460px; }
+
+.tiles { min-height: 38px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.tile {
+  min-width: 30px; height: 36px; padding: 0 6px; display: grid; place-items: center;
+  font-family: var(--f-hand); font-weight: 700; font-size: 1.45rem; color: var(--ink);
+  background: var(--paper); border-radius: 3px; box-shadow: 0 1px 0 var(--line), 0 4px 10px rgba(60,40,20,.08);
+  opacity: .45; transition: opacity .15s, transform .15s, color .15s;
+}
+.tile.on { opacity: 1; color: var(--coral); transform: translateY(-5px) rotate(-4deg); }
+.tile.done { opacity: 1; }
+
+.progress { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.progress-label { margin: 0; font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; color: var(--ink-soft); }
+.dots { display: flex; gap: 6px; }
+.dot {
+  width: 28px; height: 28px; border-radius: 50%; padding: 0;
+  border: 1.5px dashed var(--line); background: transparent;
+  color: var(--ink-soft); font-family: var(--f-hand); font-weight: 700; font-size: 1.1rem;
+  display: grid; place-items: center; cursor: default;
+}
+.ui .dot:not(.seen) { pointer-events: none; }
+.dot.seen { background: var(--coral); border: 0; color: #fff; cursor: pointer; }
+.countdown { margin: 0; font-family: var(--f-hand); font-size: 1.2rem; color: var(--coral); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.btn {
+  font: 700 .9rem/1 var(--f-body); letter-spacing: .02em;
+  padding: 11px 16px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+  text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:focus-visible, .dot:focus-visible { outline: 3px solid var(--coral); outline-offset: 2px; }
+.btn.solid { background: var(--coral); border-color: var(--coral); color: #fff; }
+.btn svg { width: 18px; height: 18px; }
+
+/* ---------- Nota de papel ---------- */
+.backdrop {
+  position: fixed; inset: 0; z-index: 20; background: rgba(43,35,30,.28);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; transition: opacity .25s;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.backdrop.show { opacity: 1; }
+.sheet {
+  position: relative; width: 100%; max-width: 440px; max-height: 86%; overflow-y: auto;
+  background: var(--paper); color: var(--ink); border-radius: 14px 14px 0 0;
+  padding: 30px 22px calc(22px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -12px 40px rgba(60,40,20,.18);
+  transform: translateY(105%); transition: transform .34s cubic-bezier(.2,.9,.3,1.05);
+  text-align: left;
+}
+.backdrop.show .sheet { transform: translateY(0); }
+.sheet .num { position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--coral); color: #fff; font-family: var(--f-hand); font-weight: 700; font-size: 1.7rem; display: grid; place-items: center; }
+.kicker { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; font-size: .74rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--coral); }
+.kicker svg { width: 18px; height: 18px; }
+.sheet h2 { margin: 0 58px 10px 0; font-family: var(--f-hand); font-size: 2.3rem; line-height: 1; font-weight: 700; text-wrap: balance; }
+.sheet p { margin: 0 0 12px; font-size: 1.02rem; line-height: 1.5; color: var(--ink-soft); }
+.sheet p b { color: var(--ink); }
+.sheet .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.sheet .close { margin-top: 18px; width: 100%; justify-content: center; }
+.copybox { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--t-kraft); border-radius: 8px; padding: 10px 12px; font-family: var(--f-hand); font-size: 1.5rem; font-weight: 700; color: var(--ink); }
+.copybox span { user-select: all; word-break: break-all; min-width: 0; }
+.copybox button { font: 700 .85rem var(--f-body); border: 0; background: var(--ink); color: var(--paper); padding: 8px 12px; border-radius: 999px; cursor: pointer; flex: none; }
+.big-count { font-family: var(--f-hand); font-size: 3rem; line-height: 1; color: var(--coral) !important; }
+.list { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+.list .item { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; }
+.list .item .n { width: 30px; height: 30px; border-radius: 50%; background: var(--t-blush); display: grid; place-items: center; font-family: var(--f-hand); font-weight: 700; font-size: 1.2rem; color: var(--coral); }
+.list .item div { min-width: 0; }
+.list .item strong { display: block; font-family: var(--f-hand); font-size: 1.5rem; line-height: 1.05; color: var(--ink); }
+.list .item small { display: block; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
+.list .item p { margin: 2px 0 0; font-size: .95rem; }
+.list a { color: var(--coral); font-weight: 700; }
+.steps { padding-left: 1.2em; margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.steps li + li { margin-top: 8px; }
+.tag { width: min(230px, 64vw); aspect-ratio: 1; max-width: 100%; margin: 4px auto 10px; border-radius: 50%; background: var(--paper); box-shadow: inset 0 0 0 7px var(--paper), inset 0 0 0 8.5px var(--t-kraft), 0 6px 18px rgba(60,40,20,.14); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; transform: rotate(-4deg); }
+.tag svg { width: 46%; height: auto; }
+.tag .names { font-family: var(--f-script); font-size: 1.9rem; color: var(--ink); line-height: 1.1; }
+.tag .date { font-weight: 700; color: var(--ink-soft); font-size: .95rem; }
+.tag .love { font-weight: 700; color: var(--ink); font-size: .82rem; }
+.center { text-align: center; }
+.center h2 { margin-right: 0; }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+@media (prefers-reduced-motion: reduce) { .sheet, .backdrop { transition-duration: .01s; } }
+</style>
+</head>
+<body>
+
+<canvas id="gl" aria-label="Sapito de papel en 3D. Tocá una solapa para jugar."></canvas>
+
+<div class="ui">
+  <header id="top">
+    <p class="eyebrow" id="eyebrow">Sábado 19 de diciembre</p>
+    <h1>Luci &amp; Javi</h1>
+    <p class="sub">¡Cumplimos 10 años y te invitamos a festejar!</p>
+    <p class="status" id="status" aria-live="polite">Tocá una solapa del sapito</p>
+    <p class="hint" id="hint">Arrastrá para girarlo</p>
+  </header>
+  <div class="spacer"></div>
+  <div id="bottom">
+    <div class="tiles" id="tiles" aria-hidden="true"></div>
+    <div class="progress">
+      <p class="progress-label" id="progressLabel">Secretos descubiertos 0 de 8</p>
+      <div class="dots" id="dots"></div>
+    </div>
+    <p class="countdown" id="countdown"></p>
+    <div class="actions">
+      <button class="btn" id="helpBtn" type="button">¿Cómo se juega?</button>
+      <button class="btn" id="allBtn" type="button">Ver todos los datos</button>
+    </div>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop" hidden>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
+</div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =========================================================
+   DATOS DE LA FIESTA — editá acá.
+   Lo que quede vacío ("") se muestra como "a confirmar"
+   o se oculta el botón correspondiente.
+   ========================================================= */
+const CONFIG = {
+  date: '2026-12-19',            // fecha de la fiesta (AAAA-MM-DD)
+  dateLabel: 'Sábado 19 de diciembre',
+  time: '',                      // ej: '21:00'
+  venue: '',                     // ej: 'Salón Los Aromos'
+  address: '',                   // ej: 'Av. Siempreviva 742, Córdoba' (para el botón de Maps)
+  dressCode: '',                 // ej: 'Elegante sport'
+  rsvpBy: '',                    // ej: '10 de diciembre'
+  whatsapp: '',                  // solo números con código de país, ej: '5493511234567'
+  alias: '',                     // alias para regalos, ej: 'luci.javi.10'
+  since: '2016-12-02',           // el día que empezó todo
+};
+
+const $ = s => document.querySelector(s);
+const statusEl = $('#status'), tilesEl = $('#tiles');
+const backdrop = $('#backdrop'), sheet = $('#sheet');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const T = reduced ? { close: 100, open: 220 } : { close: 230, open: 380 };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const ICON = {
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin: '<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  bow: '<path d="M3 8l7 4-7 4zM21 8l-7 4 7 4z"/><rect x="10" y="10.5" width="4" height="3" rx="1"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  gift: '<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 13h18M12 9v12M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z"/>',
+  heart: '<path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 9-3 4.5 4.5 0 0 1 9 3c-2 4.5-9 9-9 9z"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  wa: '<path d="M4 20l1.3-4A8 8 0 1 1 8 18.8z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8a4 4 0 0 1-1.8-1.8l.8-1-1-2z"/>',
+};
+const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+
+/* ---------- fechas ---------- */
+function partyDate() {
+  const [y, m, d] = CONFIG.date.split('-').map(Number);
+  const [hh, mm] = (CONFIG.time || '00:00').split(':').map(Number);
+  return new Date(y, m - 1, d, hh, mm);
+}
+function daysUntil() {
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const p = partyDate(); p.setHours(0, 0, 0, 0);
+  return Math.round((p - now) / 86400000);
+}
+function daysTogether() {
+  const [y, m, d] = CONFIG.since.split('-').map(Number);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.round((now - new Date(y, m - 1, d)) / 86400000);
+}
+function countdownText() {
+  const n = daysUntil();
+  if (n > 1) return `Faltan ${n} días`;
+  if (n === 1) return '¡Es mañana!';
+  if (n === 0) return '¡Es hoy!';
+  return '¡Gracias por festejar con nosotros!';
+}
+function gcalLink() {
+  const p = CONFIG.date.replace(/-/g, '');
+  let dates;
+  if (CONFIG.time) {
+    const s = partyDate(), e = new Date(s.getTime() + 6 * 3600000);
+    const f = x => x.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    dates = `${f(s)}/${f(e)}`;
+  } else {
+    const n = partyDate(); n.setDate(n.getDate() + 1);
+    dates = `${p}/${n.getFullYear()}${String(n.getMonth() + 1).padStart(2, '0')}${String(n.getDate()).padStart(2, '0')}`;
+  }
+  const q = new URLSearchParams({
+    action: 'TEMPLATE', text: 'Luci & Javi · 10 años', dates,
+    details: '¡Cumplimos 10 años y lo festejamos juntos!',
+    location: [CONFIG.venue, CONFIG.address].filter(Boolean).join(', '),
+  });
+  return 'https://calendar.google.com/calendar/render?' + q.toString();
+}
+const waLink = text => CONFIG.whatsapp ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}` : '';
+const fmtNum = n => n.toLocaleString('es-AR');
+const RSVP_MSG = '¡Hola! Confirmo que voy a la fiesta de los 10 años de Luci & Javi 🎉';
+
+/* ---------- los 8 secretos ---------- */
+function detail(n) {
+  switch (n) {
+    case 1: return { icon: 'cal', kicker: '¿Cuándo?', title: CONFIG.dateLabel,
+      body: '<p>Guardate la fecha: cumplimos <b>10 años juntos</b> y queremos festejarlo con vos.</p>',
+      actions: [{ label: 'Agendar en Google Calendar', href: gcalLink(), ico: 'cal' }] };
+    case 2: return { icon: 'clock', kicker: '¿A qué hora?', title: CONFIG.time ? `A las ${CONFIG.time} hs` : 'Horario a confirmar',
+      body: `<p class="big-count">${esc(countdownText())}</p><p>${CONFIG.time ? 'Llegá puntual que hay sorpresas.' : 'Te avisamos el horario muy pronto.'}</p>` };
+    case 3: return { icon: 'pin', kicker: '¿Dónde?', title: CONFIG.venue || 'Lugar a confirmar',
+      body: `<p>${CONFIG.address ? esc(CONFIG.address) : 'Te contamos el lugar en unos días.'}</p>`,
+      actions: CONFIG.address ? [{ label: 'Abrir en Google Maps', href: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([CONFIG.venue, CONFIG.address].filter(Boolean).join(', ')), ico: 'pin' }] : [] };
+    case 4: return { icon: 'bow', kicker: 'Dress code', title: CONFIG.dressCode || 'Lindos y cómodos',
+      body: '<p>Vení como más te guste, pero con zapatos que aguanten <b>toda la noche</b> en la pista.</p>' };
+    case 5: return { icon: 'mail', kicker: 'Confirmá tu asistencia', title: '¿Contamos con vos?',
+      body: `<p>Avisanos ${CONFIG.rsvpBy ? `antes del <b>${esc(CONFIG.rsvpBy)}</b>` : '<b>lo antes posible</b>'} así te guardamos un lugar.</p>` +
+        (CONFIG.whatsapp ? `<p>WhatsApp: <b style="user-select:all">+${esc(CONFIG.whatsapp)}</b></p>` : ''),
+      actions: CONFIG.whatsapp ? [{ label: 'Confirmar por WhatsApp', href: waLink(RSVP_MSG), ico: 'wa', solid: true }] : [] };
+    case 6: return { icon: 'gift', kicker: 'Regalo', title: 'Tu presencia es el mejor regalo',
+      body: CONFIG.alias
+        ? `<p>Si igual querés hacernos un mimo, te dejamos nuestro alias:</p><div class="copybox"><span id="aliasTxt">${esc(CONFIG.alias)}</span><button type="button" id="copyAlias">Copiar</button></div>`
+        : '<p>Si igual querés hacernos un mimo, en unos días te pasamos los datos.</p>' };
+    case 7: return { icon: 'heart', kicker: 'Nuestra historia', title: '02/12/2016',
+      body: `<p>Ese día empezó todo. Ya son <b>${fmtNum(daysTogether())} días</b> juntos, y vamos por muchos más.</p>` };
+    case 8: return { icon: 'music', kicker: 'La música', title: 'Pedí tu tema',
+      body: '<p>¿Qué canción no puede faltar en la pista? Mandánosla y la sumamos a la playlist de la noche.</p>',
+      actions: CONFIG.whatsapp ? [{ label: 'Mandar mi canción', href: waLink('Para la fiesta no puede faltar: '), ico: 'music' }] : [] };
+  }
+}
+
+/* ---------- estado ---------- */
+let seen = new Set();
+try { seen = new Set(JSON.parse(localStorage.getItem('sapito-seen') || '[]')); } catch (e) {}
+let finaleShown = false;
+try { finaleShown = localStorage.getItem('sapito-finale') === '1'; } catch (e) {}
+const save = () => { try { localStorage.setItem('sapito-seen', JSON.stringify([...seen])); } catch (e) {} };
+let phase = 'idle'; // idle | busy | count | reveal
+let axis = 'z';     // boca abierta: 'z' = adelante/atrás, 'x' = izquierda/derecha
+const setStatus = t => { statusEl.textContent = t; };
+const buzz = () => { try { navigator.vibrate && navigator.vibrate(12); } catch (e) {} };
+
+/* =========================================================
+   SAPITO 3D
+   Cada bolsillo es un "pico" de papel: 2 caras de afuera (texto),
+   2 caras de adentro (números) y 2 de abajo (donde van los dedos).
+   Las 4 puntas se tocan en el centro cuando está cerrado; al abrir,
+   cada pico estira su punta hacia un lado; el par opuesto se aprieta.
+   ========================================================= */
+const G = { ok: false };
+// Comecocos: cada bolsillo es un cuadrado doblado por su diagonal.
+// TIP = esquina interior (arriba; las 4 se juntan en el centro al cerrar),
+// O = esquina exterior (abajo, donde va el dedo), C = uniones con los vecinos,
+// I = centro del papel, en el fondo de la boca.
+const SHAPE = { a: .8, b: .78, cy: .6, iy: .3, h: 1.55, t0: .03, tk: .74 };
+// apertura de cada lado: 0 = apretado (puntas juntas), 1 = boca abierta
+const OPEN_REST = .62, OPEN_PLAY = .95, OPEN_PICK = 1.05;
+const ROOT_Y = .02;
+const CAM = { idle: [.48, .8], play: [.75, .8], pick: [1.42, .7] }; // [elevación, altura del foco]
+const TINTS = ['#f6d5ca', '#d8e6d6', '#f6e7bd', '#dcdff0'];
+const POCKETS = [ // orden: fondo-izq, fondo-der, frente-der, frente-izq
+  { sx: -1, sz: -1, word: 'DIEZ',   faces: [['¡Cumplimos'], ['10 años!']], numZ: 1, numX: 5 },
+  { sx:  1, sz: -1, word: 'FIESTA', faces: [['¡Te', 'invitamos'], ['a festejar!']], numZ: 2, numX: 6 },
+  { sx:  1, sz:  1, word: 'BAILE',  faces: [['¡Vamos a'], ['celebrar!']], numZ: 3, numX: 7 },
+  { sx: -1, sz:  1, word: 'AMOR',   faces: ['logo', ['Luci', '& Javi']], numZ: 4, numX: 8 },
+];
+const FACE_DEF = [ // vértices de cada cara
+  { kind: 'outer', v: ['O', 'Cx', 'TIP'] },
+  { kind: 'outer', v: ['O', 'Cz', 'TIP'] },
+  { kind: 'num', axis: 'z', v: ['I', 'Cz', 'TIP'] }, // se ve con la boca abierta adelante/atrás
+  { kind: 'num', axis: 'x', v: ['I', 'Cx', 'TIP'] }, // se ve con la boca abierta a los costados
+  { kind: 'under', v: ['I', 'Cx', 'O'] },
+  { kind: 'under', v: ['I', 'Cz', 'O'] },
+];
+
+const lin = c => new THREE.Color(c).convertSRGBToLinear();
+const V3 = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: a => Math.hypot(a[0], a[1], a[2]),
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]); return [a[0] / l, a[1] / l, a[2] / l]; },
+  scale: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+};
+// posición de los puntos de un pico según cuánto está abierto cada lado
+function pocketPoints(P, ox, oz) {
+  const S = SHAPE, { sx, sz } = P;
+  return {
+    O: [sx * (S.a + .06 * ox), 0, sz * (S.a + .06 * oz)],
+    I: [0, S.iy, 0],
+    Cx: [0, S.cy, sz * S.b],
+    Cz: [sx * S.b, S.cy, 0],
+    TIP: [sx * (S.t0 + S.tk * ox), S.h - .12 * (ox + oz), sz * (S.t0 + S.tk * oz)],
+  };
+}
+
+function canvas2d(n) { const c = document.createElement('canvas'); c.width = c.height = n; return [c, c.getContext('2d')]; }
+function texFrom(c) {
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  if (G.renderer) t.anisotropy = G.renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+function paper(ctx, tint) {
+  ctx.fillStyle = tint; ctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 2200; i++) {
+    ctx.fillStyle = `rgba(70,50,30,${Math.random() * .035})`;
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+}
+function fitFont(ctx, lines, maxW, maxH, weight) {
+  let fs = 100;
+  ctx.font = `${weight} ${fs}px Caveat, cursive`;
+  const w = Math.max(...lines.map(l => ctx.measureText(l).width));
+  fs = Math.min(fs * maxW / w, maxH / (lines.length * .95));
+  return Math.floor(fs);
+}
+
+/* Construye la geometría de un pico: UV sin deformar (tomadas de una pose
+   media) y, por cara, dónde y con qué giro escribir para que se lea derecho. */
+function buildPocket(P) {
+  const { sx, sz } = P;
+  const ref = pocketPoints(P, .8, .8);
+  const avg = t => [(t[0][0] + t[1][0] + t[2][0]) / 3, (t[0][1] + t[1][1] + t[2][1]) / 3, (t[0][2] + t[1][2] + t[2][2]) / 3];
+  const mouth = [0, 1.7, 0];
+  const leftIsCx = sx * sz > 0; // vista desde afuera, ¿cuál cara queda a la izquierda?
+  const faces = FACE_DEF.map((d, i) => ({ ...d, slot: i === 0 ? (leftIsCx ? 0 : 1) : (leftIsCx ? 1 : 0) }));
+  const pos = [], uv = [];
+  const g = new THREE.BufferGeometry();
+  const basis = (tri, view) => {
+    const [a, b, c] = tri;
+    let ex = V3.norm(V3.sub(b, a));
+    const ac = V3.sub(c, a);
+    const ey = V3.norm(V3.sub(ac, V3.scale(ex, V3.dot(ac, ex))));
+    if (V3.dot(V3.cross(ex, ey), view) < 0) ex = V3.scale(ex, -1); // que no se vea espejado
+    return { ex, ey };
+  };
+  const viewOf = (tri, kind) => {
+    const n = V3.cross(V3.sub(tri[1], tri[0]), V3.sub(tri[2], tri[0]));
+    const c = avg(tri);
+    const r = kind === 'num' ? V3.sub(mouth, c) : kind === 'under' ? [0, -1, 0] : [c[0], 0, c[2]];
+    return V3.dot(n, r) >= 0 ? n : V3.scale(n, -1);
+  };
+  faces.forEach((f, i) => {
+    const tri = f.v.map(k => ref[k]);
+    const [a, b, c] = tri;
+    const { ex, ey } = basis(tri, viewOf(tri, f.kind));
+    const p2 = tri.map(p => { const d = V3.sub(p, a); return [V3.dot(d, ex), V3.dot(d, ey)]; });
+    const xs = p2.map(p => p[0]), ys = p2.map(p => p[1]);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const span = Math.max(maxX - minX, maxY - minY) * 1.04;
+    const ox = (span - (maxX - minX)) / 2 - minX, oy = (span - (maxY - minY)) / 2 - minY;
+    const uvs = p2.map(([x, y]) => [(x + ox) / span, (y + oy) / span]);
+    pos.push(...a, ...b, ...c); uvs.forEach(u => uv.push(u[0], u[1]));
+    g.addGroup(i * 3, 3, i);
+    // incentro y radio inscripto (en px de canvas)
+    const L = [V3.len(V3.sub(b, c)), V3.len(V3.sub(a, c)), V3.len(V3.sub(a, b))];
+    const per = L[0] + L[1] + L[2];
+    const cu = (uvs[0][0] * L[0] + uvs[1][0] * L[1] + uvs[2][0] * L[2]) / per;
+    const cv = (uvs[0][1] * L[0] + uvs[1][1] * L[1] + uvs[2][1] * L[2]) / per;
+    const area = V3.len(V3.cross(V3.sub(b, a), V3.sub(c, a))) / 2;
+    f.cx = cu * 512; f.cy = (1 - cv) * 512; f.r = (area / (per / 2)) / span * 512;
+    // "arriba": textos hacia el cielo (pose media); números hacia arriba de la pantalla con la boca abierta.
+    // Se lleva esa dirección del mundo al espacio de la textura con el mapeo afín del triángulo.
+    let t3 = tri, up = [0, 1, 0];
+    if (f.kind === 'num') {
+      const pk = f.axis === 'z' ? pocketPoints(P, 0, OPEN_PICK) : pocketPoints(P, OPEN_PICK, 0);
+      t3 = f.v.map(k => pk[k]); up = [0, .15, -1];
+    }
+    const e1 = V3.sub(t3[1], t3[0]), e2 = V3.sub(t3[2], t3[0]);
+    const g11 = V3.dot(e1, e1), g12 = V3.dot(e1, e2), g22 = V3.dot(e2, e2);
+    const r1 = V3.dot(up, e1), r2 = V3.dot(up, e2), det = g11 * g22 - g12 * g12;
+    const al = (r1 * g22 - r2 * g12) / det, be = (r2 * g11 - r1 * g12) / det;
+    const tu = al * (uvs[1][0] - uvs[0][0]) + be * (uvs[2][0] - uvs[0][0]);
+    const tv = al * (uvs[1][1] - uvs[0][1]) + be * (uvs[2][1] - uvs[0][1]);
+    f.rot = Math.atan2(tu, tv);
+  });
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.computeVertexNormals();
+  return { geo: g, faces };
+}
+// mueve los vértices del pico a la pose actual
+function posePocket(p, ox, oz) {
+  const pts = pocketPoints(p, ox, oz);
+  const arr = p.mesh.geometry.attributes.position.array;
+  let j = 0;
+  FACE_DEF.forEach(d => d.v.forEach(k => { const q = pts[k]; arr[j++] = q[0]; arr[j++] = q[1]; arr[j++] = q[2]; }));
+  p.mesh.geometry.attributes.position.needsUpdate = true;
+  p.mesh.geometry.computeVertexNormals();
+  p.mesh.geometry.computeBoundingSphere();
+}
+
+function drawLabel(f, content) {
+  const [c, ctx] = canvas2d(512);
+  paper(ctx, '#fffdf8');
+  ctx.save(); ctx.translate(f.cx, f.cy); ctx.rotate(f.rot);
+  ctx.fillStyle = '#2b231e'; ctx.strokeStyle = '#2b231e'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (content === 'logo') {
+    const k = f.r / 110; ctx.scale(k, k); ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const arrow = (x1, y1, x2, y2) => {
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      const a = Math.atan2(y2 - y1, x2 - x1), Lh = 20;
+      ctx.beginPath(); ctx.moveTo(x2 - Lh * Math.cos(a - .45), y2 - Lh * Math.sin(a - .45)); ctx.lineTo(x2, y2); ctx.lineTo(x2 - Lh * Math.cos(a + .45), y2 - Lh * Math.sin(a + .45)); ctx.stroke();
+      for (let k2 = 0; k2 < 3; k2++) {
+        const px = x1 + Math.cos(a) * (8 + k2 * 10), py = y1 + Math.sin(a) * (8 + k2 * 10);
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - 12 * Math.cos(a - .9), py - 12 * Math.sin(a - .9));
+        ctx.moveTo(px, py); ctx.lineTo(px - 12 * Math.cos(a + .9), py - 12 * Math.sin(a + .9)); ctx.stroke();
+      }
+    };
+    arrow(-80, 80, 78, -78); arrow(80, 80, -78, -78);
+    ctx.font = '700 34px Caveat, cursive'; ctx.fillText('&', 0, -70);
+    ctx.font = '700 50px Caveat, cursive'; ctx.fillText('Luci', -78, 4); ctx.fillText('Javi', 80, 4);
+    ctx.font = '700 40px Caveat, cursive'; ctx.fillText('10', 0, 80);
+  } else {
+    const fs = fitFont(ctx, content, f.r * 3.1, f.r * 1.9, 700);
+    ctx.font = `700 ${fs}px Caveat, cursive`;
+    content.forEach((l, i) => ctx.fillText(l, 0, (i - (content.length - 1) / 2) * fs * .92));
+  }
+  ctx.restore();
+  return texFrom(c);
+}
+function drawNumber(m) {
+  const { n, tint, f, ctx } = m.userData;
+  paper(ctx, tint);
+  ctx.save(); ctx.translate(f.cx, f.cy); ctx.rotate(f.rot);
+  const fs = f.r * 1.5;
+  ctx.fillStyle = '#2b231e'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `700 ${fs}px Caveat, cursive`;
+  ctx.fillText(String(n), 0, fs * .04);
+  if (seen.has(n)) {
+    ctx.strokeStyle = '#d9584f'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, 4, fs * .46, fs * .52, -0.25, 0.35, Math.PI * 2 + 0.15); ctx.stroke();
+  }
+  ctx.restore();
+  m.userData.t.needsUpdate = true;
+}
+
+function initGL() {
+  const cv = $('#gl');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { return false; }
+  G.renderer = renderer;
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x000000, 0);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = G.scene = new THREE.Scene();
+  G.camera = new THREE.PerspectiveCamera(32, 1, .1, 60);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd9cbb8, .72));
+  const sun = new THREE.DirectionalLight(0xfff4e6, .78);
+  sun.position.set(-2.5, 6, 3.5); sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 1, far: 15 });
+  sun.shadow.radius = 8; sun.shadow.bias = -0.0006;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xffe9dc, .22); fill.position.set(3, 2, -2); scene.add(fill);
+
+  // sombra sobre el fondo liso (el piso es invisible)
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.ShadowMaterial({ opacity: .13 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  const root = G.root = new THREE.Group(); root.position.y = ROOT_Y; scene.add(root);
+  const underMat = new THREE.MeshStandardMaterial({ color: lin('#ece4d8'), roughness: 1, side: THREE.DoubleSide });
+
+  G.pockets = POCKETS.map((P, i) => {
+    const { geo, faces } = buildPocket(P, i);
+    const mats = faces.map(f => {
+      if (f.kind === 'outer') return new THREE.MeshStandardMaterial({ map: drawLabel(f, P.faces[f.slot]), roughness: .95, side: THREE.DoubleSide });
+      if (f.kind === 'num') {
+        const n = f.axis === 'z' ? P.numZ : P.numX;
+        const tint = TINTS[(n - 1) % 4];
+        const [c, ctx] = canvas2d(512);
+        const t = texFrom(c);
+        const m = new THREE.MeshStandardMaterial({ map: t, roughness: .95, side: THREE.DoubleSide, emissive: lin(tint), emissiveIntensity: 0 });
+        m.userData = { n, tint, f, c, ctx, t, axis: f.axis };
+        drawNumber(m);
+        return m;
+      }
+      return underMat;
+    });
+    const mesh = new THREE.Mesh(geo, mats);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    mesh.userData.pocket = i;
+    const pivot = new THREE.Group(); pivot.add(mesh); root.add(pivot);
+    return { ...P, mesh, pivot, nums: mats.filter(m => m.userData && m.userData.n), s: 1, sT: 1 };
+  });
+
+  G.pose = { z: OPEN_REST, zT: OPEN_REST, x: 0, xT: 0 }; // cuánto abre cada lado
+  G.cam = { e: CAM.idle[0], eT: CAM.idle[0], ty: CAM.idle[1], tyT: CAM.idle[1] };
+  G.yaw = .62; G.yawVel = 0;
+  G.ok = true;
+  fitCamera();
+  return true;
+}
+
+function fitCamera() {
+  if (!G.ok) return;
+  const w = innerWidth, h = innerHeight;
+  G.renderer.setSize(w, h, false);
+  const top = $('#top').getBoundingClientRect().bottom;
+  const bot = $('#bottom').getBoundingClientRect().top;
+  const avail = Math.max(160, bot - top);
+  const cam = G.camera;
+  cam.aspect = w / h;
+  const vHalf = THREE.MathUtils.degToRad(cam.fov / 2);
+  const effV = Math.atan(Math.tan(vHalf) * avail / h);
+  const hHalf = Math.atan(Math.tan(vHalf) * cam.aspect);
+  G.dist = 1.5 / Math.sin(Math.min(effV, hHalf));
+  const offset = (top + bot) / 2 - h / 2;
+  cam.setViewOffset(w, h, 0, -offset, w, h);
+  cam.updateProjectionMatrix();
+}
+
+// ax = null → cerrado (las 4 puntas juntas)
+function setOpen(ax, amount) {
+  if (!G.ok) return;
+  G.pose.zT = ax === 'z' ? amount : 0;
+  G.pose.xT = ax === 'x' ? amount : 0;
+}
+function setCamera(mode) {
+  if (!G.ok) return;
+  [G.cam.eT, G.cam.tyT] = CAM[mode] || CAM.idle;
+}
+const refreshNumbers = () => G.ok && G.pockets.forEach(p => p.nums.forEach(drawNumber));
+
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const k = 1 - Math.exp(-dt * (reduced ? 30 : 13));
+  const t = now / 1000;
+  const picking = phase === 'count' || phase === 'reveal';
+  // giro: al elegir números, vuelve de frente para leerlos derechos
+  if (!drag.on) {
+    if (picking || phase === 'busy') {
+      const target = Math.round(G.yaw / (Math.PI * 2)) * Math.PI * 2;
+      G.yaw += (target - G.yaw) * k * .6; G.yawVel = 0;
+    } else {
+      G.yaw += G.yawVel; G.yawVel *= .93;
+      if (!reduced && Math.abs(G.yawVel) < .0005) G.yaw += Math.sin(t * .45) * .0008;
+    }
+  }
+  G.root.rotation.y = G.yaw;
+  // apertura (boca)
+  const pz = G.pose;
+  pz.z += (pz.zT - pz.z) * k; pz.x += (pz.xT - pz.x) * k;
+  const breathe = phase === 'idle' && !reduced ? Math.sin(t * 1.8) * .05 : 0;
+  G.root.position.y = ROOT_Y + (phase === 'idle' && !reduced ? Math.sin(t * 1.2) * .03 : 0);
+  G.pockets.forEach(p => {
+    p.s += (p.sT - p.s) * k;
+    const oz = pz.z + (pz.zT > 0 ? breathe : 0), ox = pz.x + (pz.xT > 0 ? breathe : 0);
+    posePocket(p, ox, oz);
+    p.pivot.scale.setScalar(p.s);
+    p.nums.forEach(m => {
+      const on = picking && m.userData.axis === axis;
+      m.emissiveIntensity = on ? .12 + .1 * Math.sin(t * 5) : 0;
+    });
+  });
+  // cámara
+  const cm = G.cam;
+  cm.e += (cm.eT - cm.e) * k * .5; cm.ty += (cm.tyT - cm.ty) * k * .5;
+  G.camera.position.set(0, cm.ty + Math.sin(cm.e) * G.dist, Math.cos(cm.e) * G.dist);
+  G.camera.lookAt(0, cm.ty, 0);
+  G.renderer.render(G.scene, G.camera);
+  requestAnimationFrame(tick);
+}
+
+/* ---------- arrastrar y tocar ---------- */
+const drag = { on: false, x: 0, y: 0, moved: 0, lastX: 0 };
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function bindPointer() {
+  const cv = $('#gl');
+  cv.addEventListener('pointerdown', e => {
+    drag.on = true; drag.x = drag.lastX = e.clientX; drag.y = e.clientY; drag.moved = 0; G.yawVel = 0;
+    cv.setPointerCapture(e.pointerId); cv.classList.add('dragging');
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag.on) return;
+    const dx = e.clientX - drag.lastX; drag.lastX = e.clientX;
+    drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y));
+    if (drag.moved > 8 && phase === 'idle') { G.yaw += dx * .01; G.yawVel = dx * .01; $('#hint').hidden = true; }
+  });
+  cv.addEventListener('pointerup', e => {
+    if (!drag.on) return;
+    drag.on = false; cv.classList.remove('dragging');
+    if (drag.moved <= 8) tap(e.clientX, e.clientY);
+  });
+  cv.addEventListener('pointercancel', () => { drag.on = false; cv.classList.remove('dragging'); });
+}
+function tap(x, y) {
+  ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, G.camera);
+  const hit = ray.intersectObjects(G.pockets.map(p => p.mesh), false)[0];
+  if (hit) onPocket(G.pockets[hit.object.userData.pocket]);
+}
+
+/* ---------- juego ---------- */
+async function step() {
+  setOpen(null);                       // se cierra: las 4 puntas se tocan
+  await wait(T.close);
+  axis = axis === 'z' ? 'x' : 'z';
+  setOpen(axis, OPEN_PLAY);            // abre la boca para el otro lado
+  buzz();
+  await wait(T.open);
+}
+function showTiles(items) { tilesEl.innerHTML = items.map(x => `<span class="tile">${x}</span>`).join(''); }
+function lightTile(i) { [...tilesEl.children].forEach((t, j) => { t.classList.toggle('on', j === i); t.classList.toggle('done', j < i); }); }
+
+async function onPocket(p) {
+  if (phase === 'idle') {
+    phase = 'busy'; $('#hint').hidden = true;
+    setCamera('play');
+    setStatus(`Deletreamos ${p.word}…`);
+    showTiles(p.word.split(''));
+    for (let i = 0; i < p.word.length; i++) { lightTile(i); await step(); }
+    lightTile(p.word.length);
+    setOpen(axis, OPEN_PICK);
+    phase = 'count'; setCamera('pick');
+    setStatus('Tocá un número');
+  } else if (phase === 'count') {
+    const n = axis === 'z' ? p.numZ : p.numX;
+    phase = 'busy'; setCamera('play');
+    setStatus(`Contamos hasta ${n}…`);
+    showTiles(Array.from({ length: n }, (_, i) => i + 1));
+    for (let i = 0; i < n; i++) { lightTile(i); await step(); }
+    lightTile(n);
+    setOpen(axis, OPEN_PICK);
+    phase = 'reveal'; setCamera('pick');
+    setStatus('Elegí qué solapa levantar');
+  } else if (phase === 'reveal') {
+    const n = axis === 'z' ? p.numZ : p.numX;
+    phase = 'busy'; buzz();
+    p.sT = 1.1; await wait(reduced ? 80 : 240); p.sT = 1; await wait(reduced ? 40 : 160);
+    seen.add(n); save(); renderProgress(); refreshNumbers();
+    openDetail(n, true);
+  }
+}
+
+async function afterReveal() {
+  tilesEl.innerHTML = '';
+  setOpen(axis, OPEN_REST);
+  setCamera('idle');
+  await wait(T.close + 120);
+  phase = 'idle';
+  if (seen.size === 8 && !finaleShown) { showFinale(); return; }
+  const left = 8 - seen.size;
+  setStatus(left ? `¡Bien! Tocá otra solapa · faltan ${left}` : '¡Ya descubriste todo! Podés seguir jugando');
+}
+
+function renderProgress() {
+  const dots = $('#dots'); dots.innerHTML = '';
+  for (let n = 1; n <= 8; n++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'dot' + (seen.has(n) ? ' seen' : ''); b.textContent = n;
+    b.setAttribute('aria-label', seen.has(n) ? `Ver secreto ${n}: ${detail(n).kicker}` : `Secreto ${n} sin descubrir`);
+    if (seen.has(n)) b.addEventListener('click', () => openDetail(n)); else b.tabIndex = -1;
+    dots.appendChild(b);
+  }
+  $('#progressLabel').textContent = `Secretos descubiertos ${seen.size} de 8`;
+}
+
+/* ---------- notas ---------- */
+let afterClose = null;
+function openSheet(html, onClose) {
+  sheet.innerHTML = html; afterClose = onClose || null;
+  backdrop.hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add('show')));
+  const c = sheet.querySelector('.close'); if (c) setTimeout(() => c.focus({ preventScroll: true }), 60);
+  sheet.scrollTop = 0;
+}
+async function closeSheet() {
+  if (backdrop.hidden) return;
+  backdrop.classList.remove('show');
+  await wait(reduced ? 20 : 320);
+  backdrop.hidden = true;
+  const fn = afterClose; afterClose = null; if (fn) fn();
+}
+backdrop.addEventListener('click', e => { if (e.target === backdrop) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+sheet.addEventListener('click', async e => {
+  if (e.target.closest('.close')) closeSheet();
+  if (e.target.id === 'copyAlias') {
+    const btn = e.target;
+    try { await navigator.clipboard.writeText(CONFIG.alias); btn.textContent = '¡Copiado!'; }
+    catch (err) {
+      const r = document.createRange(); r.selectNodeContents($('#aliasTxt'));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Seleccionado';
+    }
+    setTimeout(() => { btn.textContent = 'Copiar'; }, 1800);
+  }
+});
+function actionsHtml(actions) {
+  if (!actions || !actions.length) return '';
+  return '<div class="row">' + actions.map(a =>
+    `<a class="btn ${a.solid ? 'solid' : ''}" href="${esc(a.href)}" target="_blank" rel="noopener">${icon(a.ico)}${esc(a.label)}</a>`).join('') + '</div>';
+}
+function openDetail(n, fromGame) {
+  const d = detail(n);
+  const left = 8 - seen.size;
+  const closeLabel = fromGame ? (left ? 'Seguir jugando' : '¡Ver la sorpresa final!') : 'Cerrar';
+  openSheet(`
+    <span class="num">${n}</span>
+    <p class="kicker">${icon(d.icon)}${esc(d.kicker)}</p>
+    <h2 id="sheetTitle">${esc(d.title)}</h2>
+    ${d.body}
+    ${actionsHtml(d.actions)}
+    <button class="btn solid close" type="button">${closeLabel}</button>
+  `, fromGame ? afterReveal : null);
+}
+function showAll() {
+  const items = [];
+  for (let n = 1; n <= 8; n++) {
+    const d = detail(n);
+    const tmp = document.createElement('div'); tmp.innerHTML = d.body;
+    tmp.querySelectorAll('.copybox button').forEach(b => b.remove());
+    const links = (d.actions || []).map(a => `<a href="${esc(a.href)}" target="_blank" rel="noopener">${esc(a.label)}</a>`).join(' · ');
+    items.push(`<div class="item"><span class="n">${n}</span><div><small>${esc(d.kicker)}</small><strong>${esc(d.title)}</strong><p>${esc(tmp.textContent.trim())}</p>${links ? `<p>${links}</p>` : ''}</div></div>`);
+  }
+  openSheet(`
+    <p class="kicker">${icon('heart')}Luci &amp; Javi · 10 años</p>
+    <h2 id="sheetTitle">Todos los datos</h2>
+    <div class="list">${items.join('')}</div>
+    <button class="btn solid close" type="button">Volver al sapito</button>
+  `);
+}
+function showHelp() {
+  openSheet(`
+    <p class="kicker">${icon('heart')}Cómo se juega</p>
+    <h2 id="sheetTitle">Como en el recreo</h2>
+    <ol class="steps">
+      <li><b>Tocá una solapa.</b> El sapito abre y cierra la boca una vez por cada letra de su palabra.</li>
+      <li><b>Tocá un número</b> de los que quedan a la vista adentro, y contamos hasta ahí.</li>
+      <li><b>Elegí qué solapa levantar</b> y descubrí un dato de la fiesta.</li>
+    </ol>
+    <p style="margin-top:14px">Arrastrá con el dedo para girar el sapito. Hay <b>8 secretos</b>: encontralos todos para ver la sorpresa final. Si estás apurado, tocá <b>Ver todos los datos</b>.</p>
+    <button class="btn solid close" type="button">¡A jugar!</button>
+  `);
+}
+
+/* ---------- final ---------- */
+function heartSvg() {
+  let rings = '';
+  const ridge = (cx, cy) => {
+    for (let r = 4; r < 95; r += 4.2) {
+      const dash = `${(8 + (r * 7) % 23).toFixed(0)} ${(1.5 + (r * 3) % 4).toFixed(1)}`;
+      rings += `<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${(r * 1.12).toFixed(1)}" stroke-dasharray="${dash}"/>`;
+    }
+  };
+  ridge(72, 82); ridge(130, 78);
+  return `<svg viewBox="0 0 200 180" aria-hidden="true"><defs><clipPath id="hc"><path d="M100 170 C40 125 5 92 15 52 C25 15 75 6 100 45 C125 6 175 15 185 52 C195 92 160 125 100 170Z"/></clipPath></defs><g clip-path="url(#hc)" fill="none" stroke="#d9584f" stroke-width="2.1" opacity=".9">${rings}</g></svg>`;
+}
+function showFinale() {
+  finaleShown = true;
+  try { localStorage.setItem('sapito-finale', '1'); } catch (e) {}
+  confetti();
+  openSheet(`
+    <div class="center">
+      <div class="tag">${heartSvg()}<span class="names">Luci &amp; Javi</span><span class="date">02/12/2016</span><span class="love">10 Años de Amor</span></div>
+      <h2 id="sheetTitle">¡Descubriste todo!</h2>
+      <p>Ahora solo falta que vengas. Te esperamos el <b>${esc(CONFIG.dateLabel.toLowerCase())}</b> para brindar por estos 10 años.</p>
+      <div class="row" style="justify-content:center">
+        <a class="btn" href="${esc(gcalLink())}" target="_blank" rel="noopener">${icon('cal')}Agendar</a>
+        ${CONFIG.whatsapp ? `<a class="btn solid" href="${esc(waLink(RSVP_MSG))}" target="_blank" rel="noopener">${icon('wa')}Confirmar</a>` : ''}
+      </div>
+      <button class="btn solid close" type="button">Seguir jugando</button>
+    </div>
+  `, () => setStatus('¡Ya descubriste todo! Podés seguir jugando'));
+}
+function confetti() {
+  if (reduced) return;
+  const cv = $('#confetti'), ctx = cv.getContext('2d');
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cols = ['#e2bf68', '#d9584f', '#f6d5ca', '#d8e6d6', '#2b231e'];
+  const ps = Array.from({ length: 150 }, () => ({
+    x: innerWidth / 2 + (Math.random() - .5) * 80, y: innerHeight * .45,
+    vx: (Math.random() - .5) * 11, vy: -Math.random() * 13 - 4,
+    w: 5 + Math.random() * 6, h: 3 + Math.random() * 4,
+    r: Math.random() * 6, vr: (Math.random() - .5) * .3, c: cols[(Math.random() * cols.length) | 0],
+  }));
+  const t0 = performance.now();
+  (function frame(t) {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ps.forEach(p => {
+      p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)) + .5);
+      ctx.restore();
+    });
+    if (t - t0 < 3500) requestAnimationFrame(frame); else ctx.clearRect(0, 0, innerWidth, innerHeight);
+  })(t0);
+}
+
+/* ---------- arranque ---------- */
+$('#eyebrow').textContent = CONFIG.dateLabel + (CONFIG.time ? ` · ${CONFIG.time} hs` : '');
+$('#countdown').textContent = countdownText();
+$('#allBtn').addEventListener('click', showAll);
+$('#helpBtn').addEventListener('click', showHelp);
+renderProgress();
+if (seen.size) setStatus(seen.size === 8 ? '¡Ya descubriste todo! Podés seguir jugando' : `Tocá una solapa · faltan ${8 - seen.size} secretos`);
+
+(async () => {
+  try {
+    await Promise.race([
+      Promise.all([document.fonts.load('700 60px Caveat'), document.fonts.load('400 60px Yellowtail')]),
+      wait(2500),
+    ]);
+  } catch (e) {}
+  if (window.THREE && initGL()) {
+    bindPointer();
+    addEventListener('resize', fitCamera);
+    requestAnimationFrame(tick);
+  } else {
+    setStatus('Tu navegador no puede mostrar el sapito 3D. Tocá “Ver todos los datos”.');
+    $('#hint').hidden = true;
+  }
+})();
+</script>
+
+</body>
+</html>
